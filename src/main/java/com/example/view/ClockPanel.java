@@ -1,33 +1,25 @@
 package com.example.view;
 
-
 import com.example.listener.ClockModelListener;
-import com.example.model.ClockModel;
+import com.example.listener.EventListListener;
 import com.example.model.ClockEvent;
+import com.example.model.ClockModel;
+
 import javax.swing.*;
 import java.awt.*;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Deque;
-
-import javax.swing.*;
-import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * View: не трогает модель напрямую; получает данные через ClockModelListener.
- */
-public class ClockPanel extends JPanel implements ClockModelListener {
+public class ClockPanel extends JPanel implements ClockModelListener, EventListListener {
 
-    // локальный снимок состояния (всё, что нужно для отрисовки)
     private volatile long currentTimeMillis = 0;
-    private volatile List<ClockEvent> events = List.of();
     private volatile String modeLabel = "";
-    private final DateTimeFormatter digitalFormatter =
-            DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    private final List<ClockEvent> displayEvents = new ArrayList<>();
+    private final DateTimeFormatter digitalFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
     public ClockPanel() {
         setPreferredSize(new Dimension(350, 350));
@@ -35,16 +27,22 @@ public class ClockPanel extends JPanel implements ClockModelListener {
         setDoubleBuffered(true);
     }
 
-    // ---------------- ClockModelListener ----------------
     @Override
     public void onTimeUpdated(long currentTimeMillis) {
         this.currentTimeMillis = currentTimeMillis;
         repaint();
     }
-
+    /**
+     * Этот метод не используется. Однако если понадобится обновлять список событий через UI listener,
+     * то это может пригодиться. В текущей реализации через UI listener передается только время и режим.
+     */
     @Override
-    public void onEventsUpdated(java.util.List<ClockEvent> eventsCopy) {
-        this.events = eventsCopy;
+    public void onEventsUpdated(List<ClockEvent> eventsCopy) {
+        synchronized (displayEvents) {
+            displayEvents.clear();
+            displayEvents.addAll(eventsCopy);
+            System.out.println("onEventsUpdated (as UI listener): displaying full-copied events");
+        }
         repaint();
     }
 
@@ -54,7 +52,22 @@ public class ClockPanel extends JPanel implements ClockModelListener {
         repaint();
     }
 
-    // ---------------- painting ----------------
+
+
+    @Override
+    public void onEventAdded(ClockEvent e) {
+        synchronized (displayEvents) { displayEvents.add(e); }
+        repaint();
+        System.out.println("onEventAdded (as an EVENT listener): displaying delta-events");
+    }
+
+    @Override
+    public void onEventRemoved(ClockEvent e) {
+        synchronized (displayEvents) { displayEvents.remove(e); }
+        repaint();
+    }
+
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -85,37 +98,33 @@ public class ClockPanel extends JPanel implements ClockModelListener {
                 g2.drawLine(x1, y1, x2, y2);
             }
 
-            // стрелка (используем локальный currentTimeMillis — взят из модели через слушатель)
-            double secondsWithFrac = (currentTimeMillis % 60000L) / 1000.0; // 0..59.999
+            // стрелка
+            double secondsWithFrac = (currentTimeMillis % 60000L) / 1000.0;
             double angle = Math.toRadians((secondsWithFrac / 60.0) * 360 - 90);
-
             int handLength = (int) (radius * 0.8);
             int x2 = cx + (int) (Math.cos(angle) * handLength);
             int y2 = cy + (int) (Math.sin(angle) * handLength);
 
             g2.setStroke(new BasicStroke(3f));
-            g2.setColor(new Color(40, 40, 40));
+            g2.setColor("Часы".equals(modeLabel) ? new Color(40, 40, 40) : new Color(40, 40, 200));
             g2.drawLine(cx, cy, x2, y2);
 
-            // центр
             g2.fillOval(cx - 4, cy - 4, 8, 8);
 
-            // метки событий (используем локальную копию events)
-            if ("Часы".equals(modeLabel)) {
-                g2.setColor(new Color(40, 40, 40)); // серый
-            } else {
-                g2.setColor(new Color(40, 40, 200)); // синий
-            }
-            for (ClockEvent e : events) {
-                long ts = e.getTimestampMillis();
-                double secFrac = (ts % 60000L) / 1000.0;
-                double a = Math.toRadians((secFrac / 60.0) * 360 - 90);
-                int ex = cx + (int) (Math.cos(a) * (radius * 0.9));
-                int ey = cy + (int) (Math.sin(a) * (radius * 0.9));
-                g2.fillOval(ex - 4, ey - 4, 8, 8);
+            // метки событий
+            g2.setColor(new Color(200, 50, 50));
+            synchronized (displayEvents) {
+                for (ClockEvent e : displayEvents) {
+                    long ts = e.getTimestampMillis();
+                    double secFrac = (ts % 60000L) / 1000.0;
+                    double a = Math.toRadians((secFrac / 60.0) * 360 - 90);
+                    int ex = cx + (int) (Math.cos(a) * (radius * 0.9));
+                    int ey = cy + (int) (Math.sin(a) * (radius * 0.9));
+                    g2.fillOval(ex - 4, ey - 4, 8, 8);
+                }
             }
 
-            // цифровое время + режим
+            // цифровое время
             g2.setFont(getFont().deriveFont(Font.BOLD, 14f));
             String digital = renderDigital();
             FontMetrics fm = g2.getFontMetrics();
@@ -123,10 +132,10 @@ public class ClockPanel extends JPanel implements ClockModelListener {
             g2.setColor(Color.BLACK);
             g2.drawString(digital, cx - textWidth / 2, cy + radius + fm.getAscent());
 
-            // режим (небольшой текст)
+            // режим
             g2.setFont(getFont().deriveFont(Font.PLAIN, 12f));
-            String mode = modeLabel != null ? modeLabel : "";
-            g2.drawString(mode, 8, 16);
+            g2.drawString(modeLabel != null ? modeLabel : "", 8, 16);
+
         } finally {
             g2.dispose();
         }
@@ -134,19 +143,15 @@ public class ClockPanel extends JPanel implements ClockModelListener {
 
     private String renderDigital() {
         if ("Часы".equals(modeLabel)) {
-            // системное время
-            ZonedDateTime zdt = Instant.ofEpochMilli(currentTimeMillis)
-                    .atZone(ZoneId.systemDefault());
-            return zdt.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
+            ZonedDateTime zdt = Instant.ofEpochMilli(currentTimeMillis).atZone(ZoneId.systemDefault());
+            return zdt.format(digitalFormatter);
         } else {
-            // секундомер — длительность от 0
             long ms = currentTimeMillis;
             long hours = ms / (1000L * 60 * 60);
             long minutes = (ms / (1000L * 60)) % 60;
-            long seconds = (ms / 1000L) % 60;
+            long seconds = (ms / 1000) % 60;
             long millis = ms % 1000;
             return String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis);
         }
     }
 }
-

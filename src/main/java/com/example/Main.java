@@ -23,9 +23,8 @@ public class Main {
             ClockModel model = new ClockModel(systemTime, 20);
 
             ClockPanel panel = new ClockPanel();
-            // Подписываем view на модель (вызовет initial snapshot)
+            model.addEventListener(panel);
             model.addUiListener(panel);
-
             ClockController controller = new ClockController(model, 200, true);
 
             // дополнительный DataListener для логирования
