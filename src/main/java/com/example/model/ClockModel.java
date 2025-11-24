@@ -1,6 +1,6 @@
 package com.example.model;
 
-import com.example.listener.ClockModelListener;
+import com.example.listener.UIListener;
 import com.example.listener.DataListener;
 import com.example.listener.EventListListener;
 
@@ -11,11 +11,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ClockModel {
 
     private final Deque<ClockEvent> events = new ArrayDeque<>();
-    private final List<ClockModelListener> uiListeners = new CopyOnWriteArrayList<>();
+    private final List<UIListener> uiListeners = new CopyOnWriteArrayList<>();
     private final List<DataListener> dataListeners = new CopyOnWriteArrayList<>();
     private final List<EventListListener> eventListeners = new CopyOnWriteArrayList<>();
 
-    private volatile TimeStrategy strategy;
+    private volatile TimeStrategy strategy; //volatile чтобы было видно изменение стратегии
     private final int maxEvents;
 
     public ClockModel(TimeStrategy initialStrategy, int maxEvents) {
@@ -24,7 +24,7 @@ public class ClockModel {
     }
 
     // ---------------- listener management ----------------
-    public void addUiListener(ClockModelListener l) {
+    public void addUiListener(UIListener l) {
         uiListeners.add(Objects.requireNonNull(l));
         SwingUtilities.invokeLater(() -> {
             l.onModeChanged(strategy.getModeLabel());
@@ -33,7 +33,7 @@ public class ClockModel {
         });
     }
 
-    public void removeUiListener(ClockModelListener l) {
+    public void removeUiListener(UIListener l) {
         uiListeners.remove(l);
     }
 
@@ -105,7 +105,7 @@ public class ClockModel {
     public synchronized void setStrategy(TimeStrategy newStrategy) {
         this.strategy = Objects.requireNonNull(newStrategy);
         SwingUtilities.invokeLater(() -> {
-            for (ClockModelListener l : uiListeners) {
+            for (UIListener l : uiListeners) {
                 l.onModeChanged(strategy.getModeLabel());
                 l.onTimeUpdated(strategy.getCurrentTimeMillis());
             }
@@ -116,9 +116,9 @@ public class ClockModel {
 
     // ---------------- notification helpers ----------------
     private void notifyTimeUpdated(long ts) {
-        List<ClockModelListener> snapshot = new ArrayList<>(uiListeners);
+        List<UIListener> snapshot = new ArrayList<>(uiListeners);
         SwingUtilities.invokeLater(() -> {
-            for (ClockModelListener l : snapshot) {
+            for (UIListener l : snapshot) {
                 try { l.onTimeUpdated(ts); } catch (Throwable ex) { ex.printStackTrace(); }
             }
         });
@@ -139,6 +139,23 @@ public class ClockModel {
     private void notifyDataListeners(ClockEvent e) {
         for (DataListener dl : dataListeners) {
             try { dl.onNewValue(e.getTimestampMillis(), e.getMessage()); } catch (Throwable ex) { ex.printStackTrace(); }
+        }
+    }
+    public void startStrategy() {
+        synchronized (this) {
+            strategy.start();
+        }
+    }
+
+    public void stopStrategy() {
+        synchronized (this) {
+            strategy.stop();
+        }
+    }
+
+    public void resetStrategy() {
+        synchronized (this) {
+            strategy.reset();
         }
     }
 

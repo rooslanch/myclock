@@ -5,7 +5,7 @@ package com.example.listener;
  * Интерфейс слушателя модели (View подписывается на модель).
  * Все методы вызываются в EDT (модель гарантирует вызов через SwingUtilities.invokeLater).
  */
-public interface ClockModelListener {
+public interface UIListener {
     /**
      * При изменении "текущего времени" (например, тик)
      * @param currentTimeMillis значение времени, берётся из TimeStrategy

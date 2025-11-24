@@ -2,7 +2,7 @@ package com.example.model;
 import java.time.LocalTime;
 
 /**
- * Command / Event object — минимальный immutable объект для события.
+ * Event object — минимальный immutable объект для события.
  * timestampMillis — источник времени берётся из TimeStrategy.getCurrentTimeMillis()
  */
 public final class ClockEvent {

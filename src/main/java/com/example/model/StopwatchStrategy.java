@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class StopwatchStrategy implements TimeStrategy {
-    // baseNano — момент старта в System.nanoTime()
+    // baseNano - момент старта в System.nanoTime()
     private final AtomicLong baseNano = new AtomicLong(0);
     private final AtomicLong pausedElapsedNano = new AtomicLong(0);
     private final AtomicBoolean running = new AtomicBoolean(false);

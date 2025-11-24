@@ -8,10 +8,10 @@ import javax.swing.*;
 import java.util.concurrent.*;
 
 /**
- * Контроллер — управляет периодическим опросом модели (через strategy),
+ * Контроллер - управляет периодическим опросом модели (через strategy),
  * а также переключением режимов и запросами добавления событий.
  *
- * Важно: контроллер не дергает view напрямую — view подписаны на модель.
+ * Важно: контроллер не дергает view напрямую - view подписаны на модель.
  */
 public class ClockController {
 
@@ -39,7 +39,6 @@ public class ClockController {
             if (emitTicks) {
                 model.addEvent("Tick");
             }
-            // NB: model.updateTimeFromStrategy() уже вызывает SwingUtilities.invokeLater для UI listeners
         }, 0, periodMillis, TimeUnit.MILLISECONDS);
     }
 
@@ -70,18 +69,15 @@ public class ClockController {
 
     // пользовательские команды к стратегии (start/stop/reset) делаем через модель.getStrategy()
     public void strategyStart() {
-        TimeStrategy s = model.getStrategy();
-        s.start();
+        model.startStrategy();
     }
 
     public void strategyStop() {
-        TimeStrategy s = model.getStrategy();
-        s.stop();
+        model.stopStrategy();
     }
 
     public void strategyReset() {
-        TimeStrategy s = model.getStrategy();
-        s.reset();
+        model.resetStrategy();
     }
 
     // проксирование для внешних DataListener (если нужно)

@@ -1,9 +1,8 @@
 package com.example.view;
 
-import com.example.listener.ClockModelListener;
+import com.example.listener.UIListener;
 import com.example.listener.EventListListener;
 import com.example.model.ClockEvent;
-import com.example.model.ClockModel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,12 +13,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ClockPanel extends JPanel implements ClockModelListener, EventListListener {
+public class ClockPanel extends JPanel implements UIListener, EventListListener {
 
     private volatile long currentTimeMillis = 0;
     private volatile String modeLabel = "";
     private final List<ClockEvent> displayEvents = new ArrayList<>();
     private final DateTimeFormatter digitalFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    private LogWindow log;
+
+    public void setLogWindow(LogWindow log) {
+        this.log = log;
+    }
 
     public ClockPanel() {
         setPreferredSize(new Dimension(350, 350));
@@ -50,6 +54,7 @@ public class ClockPanel extends JPanel implements ClockModelListener, EventListL
     public void onModeChanged(String modeLabel) {
         this.modeLabel = modeLabel;
         repaint();
+        if (log != null) log.log("[As a Panel's log] Mode changed to: " + modeLabel);
     }
 
 
@@ -59,12 +64,14 @@ public class ClockPanel extends JPanel implements ClockModelListener, EventListL
         synchronized (displayEvents) { displayEvents.add(e); }
         repaint();
         System.out.println("onEventAdded (as an EVENT listener): displaying delta-events");
+        if (log != null) log.log("[As a Panel's log] Event added: " + e);
     }
 
     @Override
     public void onEventRemoved(ClockEvent e) {
         synchronized (displayEvents) { displayEvents.remove(e); }
         repaint();
+        if (log != null) log.log("[As a Panel's log] Event removed: " + e);
     }
 
 
